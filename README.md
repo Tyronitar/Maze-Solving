@@ -9,6 +9,6 @@ Recursivly generates mazes and employs various path-finding algorithms to solve 
  <h2>Pathfinding Algorithms Used</h2>
  
  - Depth-First Search
- - Dijkstra's Algorithim
+ - Dijkstra's Algorithm
  - A* Search
  - (more to come)
