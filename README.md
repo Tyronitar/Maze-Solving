@@ -20,5 +20,6 @@ To run the program, run "amazing.py". Click the buttons on the top of the window
  - Depth-First Search - does <b><i>not</i></b> guarantee the shortest path.
  - Dijkstra's Algorithm - guarantees shortest path
  - A* Search - guarantees shortest path
+ - Breadth-First Search - guarentees the shortest path
 
 I also plan to add more algorithms in the future.
