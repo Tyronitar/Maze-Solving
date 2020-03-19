@@ -1,5 +1,6 @@
 import random, time, math
 from tkinter import *
+from queue import PriorityQueue
 
 class Maze:
     """
@@ -369,18 +370,12 @@ class Maze:
 
         if i == self.end[0] and j == self.end[1]:
             self.solved = True
-            
-        if not self.cell_north_wall[i][j] and not self.visited_cells[i][j - 1]:
-            self.solve_maze_dfs(i, j - 1)
         
-        if not self.cell_east_wall[i][j] and not self.visited_cells[i + 1][j]:
-            self.solve_maze_dfs(i + 1, j)
-           
-        if not self.cell_south_wall[i][j] and not self.visited_cells[i][j + 1]:
-            self.solve_maze_dfs(i, j + 1)
-        
-        if not self.cell_west_wall[i][j] and not self.visited_cells[i - 1][j]:
-            self.solve_maze_dfs(i - 1, j)
+        for neighbor in self.get_neighbors(pos):
+            x2 = neighbor[0]
+            y2 = neighbor[1]
+            if not self.visited_cells[x2][y2]:
+                self.solve_maze_dfs(x2, y2)
 
         if self.solved:
             return
@@ -404,27 +399,20 @@ class Maze:
         
         self.solved_path.reverse()
         self.show_path()
-        
+    
     def solve_maze_dijkstras(self):
-        """
-        Actually solve the maze using dijkstras algorithm.
-        """
-        remaining_cells = [(i, j) for i in range(1, size + 1)
-                          for j in range(1, size + 1) if not self.visited_cells[i][j]]
+        worklist = PriorityQueue()
+        for i in range(1, size + 1):
+            for j in range(1, size + 1):
+                if not self.visited_cells[i][j]:
+                    worklist.put((self.cell_distances[i][j], (i, j)))
         
-        for i in range(len(remaining_cells)):
-            for j in range(len(remaining_cells) - i - 1):
-                if self.cell_distances[remaining_cells[j][0]][remaining_cells[j][1]] > self.cell_distances[remaining_cells[j + 1][0]][remaining_cells[j + 1][1]]:
-                    remaining_cells[j], remaining_cells[j + 1] = remaining_cells[j + 1], remaining_cells[j]
-             
         previous_cell = [[self.start for i in range(self.size + 2)] for j in range(self.size + 2)]
         
-        
-      
-        while len(remaining_cells) > 0:
-            x = remaining_cells[0][0]
-            y = remaining_cells[0][1]            
-            current = (x, y)
+        while not worklist.empty():
+            current = worklist.get()[1]
+            x = current[0]
+            y = current[1]
             
             if current == self.end:
                 self.solved = True
@@ -435,56 +423,29 @@ class Maze:
                 self.fill_cell(x, y, color = "blue")        
             
                 time.sleep(self.delay)
-                self.root.update()                 
-            
-            
-            if y + 1 in range(1, self.size + 1) and not self.visited_cells[x][y + 1]:
-                if not self.cell_south_wall[x][y]\
-                   and self.cell_distances[x][y] + 1 < self.cell_distances[x][y + 1]:
-                    self.cell_distances[x][y + 1] = self.cell_distances[x][y] + 1
-                    previous_cell[x][y + 1] = current
-                    
-            if x + 1 in range(1, self.size + 1) and not self.visited_cells[x + 1][y]:
-                if not self.cell_east_wall[x][y]\
-                   and self.cell_distances[x][y] + 1 < self.cell_distances[x + 1][y]:
-                    self.cell_distances[x + 1][y] = self.cell_distances[x][y] + 1
-                    previous_cell[x + 1][y] = current
-            
-            if y - 1 in range(1, self.size + 1) and not self.visited_cells[x][y - 1]:
-                if not self.cell_north_wall[x][y]\
-                   and self.cell_distances[x][y] + 1 < self.cell_distances[x][y - 1]:
-                    self.cell_distances[x][y - 1] = self.cell_distances[x][y] + 1
-                    previous_cell[x][y - 1] = current
-            
-            
-            if x - 1 in range(1, self.size + 1) and not self.visited_cells[x - 1][y]:
-                if not self.cell_west_wall[x][y]\
-                  and self.cell_distances[x][y] + 1 < self.cell_distances[x - 1][y]:
-                    self.cell_distances[x - 1][y] = self.cell_distances[x][y] + 1 
-                    previous_cell[x -1][y] = current
-            
+                self.root.update()
+                
+            for neighbor in self.get_neighbors(current):
+                x2 = neighbor[0]
+                y2 = neighbor[1]
+                if not self.visited_cells[x2][y2]:
+                    new_dist = self.cell_distances[x][y] + 1
+                    old_dist = self.cell_distances[x2][y2]
+                    if new_dist < old_dist:
+                        self.cell_distances[x2][y2] = new_dist
+                        previous_cell[x2][y2] = current
+                        worklist.put((new_dist, neighbor))
             
             self.visited_cells[x][y] = True
-            remaining_cells.remove(current)
             
-            # TODO:
-            # This is really slow and slows down the algorithm.
-            # To improve this in the future find a way to find the current
-            # shortest path that doesn't involve sorting all the remaining cells
-            # by size and taking the first one.            
-            for i in range(len(remaining_cells)):
-                for j in range(len(remaining_cells) - i - 1):
-                    if self.cell_distances[remaining_cells[j][0]][remaining_cells[j][1]] > self.cell_distances[remaining_cells[j + 1][0]][remaining_cells[j + 1][1]]:
-                        remaining_cells[j], remaining_cells[j + 1] = remaining_cells[j +1], remaining_cells[j]
-                        
-        
         self.solved_path.append(self.end)
         current = previous_cell[self.end[0]][self.end[1]]
         while not current == self.start:
             self.solved_path.append(current)
             current = previous_cell[current[0]][current[1]]
-        self.solved_path.append(self.start)
-        
+        self.solved_path.append(self.start)            
+            
+            
     def a_star(self):
         """
         Solve the maze using A* Search.
@@ -497,31 +458,23 @@ class Maze:
         self.solve_maze_a_star()
         
         self.solved_path.reverse()
-        self.show_path()    
+        self.show_path()         
     
     def solve_maze_a_star(self):
-        """
-        Actually solves the maze using A* Search. The heurisitc used is a
-        straight line from the current cell to the ending cell.
-        """
-        remaining_cells = [(i, j) for i in range(1, size + 1)
-                          for j in range(1, size + 1) if not self.visited_cells[i][j]]
+        worklist = PriorityQueue()
+        for i in range(1, size + 1):
+            for j in range(1, size + 1):
+                if not self.visited_cells[i][j]:
+                    worklist.put((self.cell_distances[i][j], (i, j)))
         
-        for i in range(len(remaining_cells)):
-            for j in range(len(remaining_cells) - i - 1):
-                if self.cell_distances[remaining_cells[j][0]][remaining_cells[j][1]] > self.cell_distances[remaining_cells[j + 1][0]][remaining_cells[j + 1][1]]:
-                    remaining_cells[j], remaining_cells[j + 1] = remaining_cells[j + 1], remaining_cells[j]
-             
         previous_cell = [[self.start for i in range(self.size + 2)] for j in range(self.size + 2)]
-        
         norm_cell_distances = [[size ** 4 for i in range(size + 2)] for j in range(size + 2)]
-        norm_cell_distances[self.start[0]][self.start[1]] = 0        
+        norm_cell_distances[self.start[0]][self.start[1]] = 0           
         
-      
-        while len(remaining_cells) > 0:
-            x = remaining_cells[0][0]
-            y = remaining_cells[0][1]            
-            current = (x, y)
+        while not worklist.empty():
+            current = worklist.get()[1]
+            x = current[0]
+            y = current[1]
             
             if current == self.end:
                 self.solved = True
@@ -532,59 +485,28 @@ class Maze:
                 self.fill_cell(x, y, color = "blue")        
             
                 time.sleep(self.delay)
-                self.root.update()                 
-            
-            
-            if y + 1 in range(1, self.size + 1) and not self.visited_cells[x][y + 1]:
-                if not self.cell_south_wall[x][y]\
-                   and self.cell_distances[x][y] + 1 + self.dis((x, y + 1), self.end) < self.cell_distances[x][y + 1]:
-                    self.cell_distances[x][y + 1] = norm_cell_distances[x][y] + 1 + self.dis((x, y + 1), self.end)
-                    norm_cell_distances[x][y + 1] = norm_cell_distances[x][y] + 1
-                    previous_cell[x][y + 1] = current
-                    
-            if x + 1 in range(1, self.size + 1) and not self.visited_cells[x + 1][y]:
-                if not self.cell_east_wall[x][y]\
-                   and norm_cell_distances[x][y] + 1 + self.dis((x + 1, y), self.end) < self.cell_distances[x + 1][y]:
-                    self.cell_distances[x + 1][y] = norm_cell_distances[x][y] + 1 + self.dis((x + 1, y), self.end)
-                    norm_cell_distances[x + 1][y] = norm_cell_distances[x][y] + 1
-                    previous_cell[x + 1][y] = current
-            
-            if y - 1 in range(1, self.size + 1) and not self.visited_cells[x][y - 1]:
-                if not self.cell_north_wall[x][y]\
-                   and norm_cell_distances[x][y] + 1 + self.dis((x, y - 1), self.end) < self.cell_distances[x][y - 1]:
-                    self.cell_distances[x][y - 1] = norm_cell_distances[x][y] + 1 + self.dis((x, y - 1), self.end)
-                    norm_cell_distances[x][y - 1] = norm_cell_distances[x][y] + 1
-                    previous_cell[x][y - 1] = current
-            
-            
-            if x - 1 in range(1, self.size + 1) and not self.visited_cells[x - 1][y]:
-                if not self.cell_west_wall[x][y]\
-                  and norm_cell_distances[x][y] + 1 + self.dis((x - 1, y), self.end) < self.cell_distances[x - 1][y]:
-                    self.cell_distances[x - 1][y] = norm_cell_distances[x][y] + 1 + self.dis((x - 1, y), self.end)
-                    norm_cell_distances[x - 1][y] = norm_cell_distances[x][y] + 1
-                    previous_cell[x -1][y] = current
+                self.root.update()
+                
+            for neighbor in self.get_neighbors(current):
+                x2 = neighbor[0]
+                y2 = neighbor[1]
+                if not self.visited_cells[x2][y2]:
+                    new_dist = norm_cell_distances[x][y] + 1 + self.dis((x2, y2), self.end)
+                    old_dist = self.cell_distances[x2][y2]
+                    if new_dist < old_dist:
+                        self.cell_distances[x2][y2] = new_dist
+                        norm_cell_distances[x2][y2] = norm_cell_distances[x][y] + 1
+                        previous_cell[x2][y2] = current
+                        worklist.put((new_dist, neighbor))                     
             
             self.visited_cells[x][y] = True
-            remaining_cells.remove(current)
             
-            
-            # TODO:
-            # This is really slow and slows down the algorithm.
-            # To improve this in the future find a way to find the current
-            # shortest path that doesn't involve sorting all the remaining cells
-            # by size and taking the first one.
-            for i in range(len(remaining_cells)):
-                for j in range(len(remaining_cells) - i - 1):
-                    if self.cell_distances[remaining_cells[j][0]][remaining_cells[j][1]] > self.cell_distances[remaining_cells[j + 1][0]][remaining_cells[j + 1][1]]:
-                        remaining_cells[j], remaining_cells[j + 1] = remaining_cells[j +1], remaining_cells[j]
-                        
-        
         self.solved_path.append(self.end)
         current = previous_cell[self.end[0]][self.end[1]]
         while not current == self.start:
             self.solved_path.append(current)
             current = previous_cell[current[0]][current[1]]
-        self.solved_path.append(self.start)        
+        self.solved_path.append(self.start)          
     
     
     def dis(self, start, end):
@@ -629,6 +551,32 @@ class Maze:
 
             time.sleep(self.delay)
             self.root.update()
+            
+        
+    def get_neighbors(self, pos):
+        """
+        Returns a lsit of neighbors that can be accessed from a given point.
+        
+        Arguments:
+            pos (tuple): the position.
+            
+        Returns:
+            neighbors (list): a list of tuples represeing the neighbors.
+        """
+        neighbors = []
+        x = pos[0]
+        y = pos[1]
+        
+        if y - 1 in range(1, self.size + 1) and not self.cell_north_wall[x][y]:
+            neighbors.append((x, y - 1))
+        if y + 1 in range(1, self.size + 1) and not self.cell_south_wall[x][y]:
+            neighbors.append((x, y + 1))     
+        if x - 1 in range(1, self.size + 1) and not self.cell_west_wall[x][y]:
+            neighbors.append((x - 1, y))
+        if x + 1 in range(1, self.size + 1) and not self.cell_east_wall[x][y]:
+            neighbors.append((x + 1, y))               
+            
+        return neighbors
 
 #
 # Helper Functions
@@ -649,7 +597,7 @@ def random_coord(size):
 
 
 if __name__ == "__main__":
-    sys.setrecursionlimit(1500)
+    sys.setrecursionlimit(2000)
     root = Tk()
     root.geometry('800x800')
     buttons = Canvas(root, width = 800, height = 100)
